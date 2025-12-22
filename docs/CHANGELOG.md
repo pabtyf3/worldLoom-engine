@@ -60,3 +60,8 @@ across crashes or restarts.
 - Goal: Implement lore reveal state handling and validation (optional, gated).
 - Outcome: Added lore reveal condition support, validation of loreKnowledge keys, and tests for reveal evaluation.
 - Follow-ups: Add CLI visibility for loreKnowledge if desired.
+
+### 2025-12-22
+- Goal: Implement companions + relationships data model and hooks (optional, gated).
+- Outcome: Added optional effect handling for companions/relationships and tests for companion/relationship effects.
+- Follow-ups: Add validation for companion ids in content if needed.

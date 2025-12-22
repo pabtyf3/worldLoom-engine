@@ -559,7 +559,7 @@ function resolveRuleHook(
 }
 
 function applyEffects(
-  _runtime: RuntimeContext,
+  runtime: RuntimeContext,
   state: GameState,
   effects: Effect[] = []
 ): { state: GameState; teleportTarget?: string } {
@@ -617,6 +617,143 @@ function applyEffects(
         } else {
           state.vars[effect.key] = effect.delta;
         }
+        break;
+      }
+      case 'setRelationship': {
+        if (!runtime.optionalFeatures.relationships) {
+          recordWarning(runtime, {
+            path: '/effects/setRelationship',
+            message: 'Relationship effects require optionalFeatures.relationships',
+            severity: 'warning',
+          });
+          break;
+        }
+        ensureRelationshipState(state);
+        state.relationships![effect.targetId] = {
+          value: effect.value,
+          stage: effect.stage,
+          flags: effect.flags,
+        };
+        break;
+      }
+      case 'modifyRelationship': {
+        if (!runtime.optionalFeatures.relationships) {
+          recordWarning(runtime, {
+            path: '/effects/modifyRelationship',
+            message: 'Relationship effects require optionalFeatures.relationships',
+            severity: 'warning',
+          });
+          break;
+        }
+        ensureRelationshipState(state);
+        const current = state.relationships![effect.targetId] ?? { value: 0 };
+        let next = current.value + effect.delta;
+        if (effect.min !== undefined) {
+          next = Math.max(effect.min, next);
+        }
+        if (effect.max !== undefined) {
+          next = Math.min(effect.max, next);
+        }
+        state.relationships![effect.targetId] = {
+          ...current,
+          value: next,
+        };
+        break;
+      }
+      case 'addCompanion': {
+        if (!runtime.optionalFeatures.companions) {
+          recordWarning(runtime, {
+            path: '/effects/addCompanion',
+            message: 'Companion effects require optionalFeatures.companions',
+            severity: 'warning',
+          });
+          break;
+        }
+        ensureCompanionsState(state);
+        if (state.companions!.some((companion) => companion.id === effect.companionId)) {
+          break;
+        }
+        const definition = findCompanionDefinition(runtime, effect.companionId);
+        if (!definition) {
+          recordWarning(runtime, {
+            path: '/effects/addCompanion',
+            message: `Companion ${effect.companionId} not found in story companions`,
+            severity: 'warning',
+          });
+          break;
+        }
+        state.companions!.push(buildCompanionState(definition));
+        break;
+      }
+      case 'removeCompanion': {
+        if (!runtime.optionalFeatures.companions) {
+          recordWarning(runtime, {
+            path: '/effects/removeCompanion',
+            message: 'Companion effects require optionalFeatures.companions',
+            severity: 'warning',
+          });
+          break;
+        }
+        ensureCompanionsState(state);
+        state.companions = state.companions!.filter(
+          (companion) => companion.id !== effect.companionId
+        );
+        break;
+      }
+      case 'setCompanionFlag': {
+        if (!runtime.optionalFeatures.companions) {
+          recordWarning(runtime, {
+            path: '/effects/setCompanionFlag',
+            message: 'Companion effects require optionalFeatures.companions',
+            severity: 'warning',
+          });
+          break;
+        }
+        ensureCompanionsState(state);
+        const target = state.companions!.find((companion) => companion.id === effect.companionId);
+        if (!target) {
+          recordWarning(runtime, {
+            path: '/effects/setCompanionFlag',
+            message: `Companion ${effect.companionId} not active`,
+            severity: 'warning',
+          });
+          break;
+        }
+        target.flags = target.flags ?? {};
+        target.flags[effect.key] = effect.value;
+        break;
+      }
+      case 'modifyCompanionRelationship': {
+        if (!runtime.optionalFeatures.companions) {
+          recordWarning(runtime, {
+            path: '/effects/modifyCompanionRelationship',
+            message: 'Companion effects require optionalFeatures.companions',
+            severity: 'warning',
+          });
+          break;
+        }
+        ensureCompanionsState(state);
+        const target = state.companions!.find((companion) => companion.id === effect.companionId);
+        if (!target) {
+          recordWarning(runtime, {
+            path: '/effects/modifyCompanionRelationship',
+            message: `Companion ${effect.companionId} not active`,
+            severity: 'warning',
+          });
+          break;
+        }
+        const currentValue = target.relationship?.value ?? 0;
+        let next = currentValue + effect.delta;
+        if (effect.min !== undefined) {
+          next = Math.max(effect.min, next);
+        }
+        if (effect.max !== undefined) {
+          next = Math.min(effect.max, next);
+        }
+        target.relationship = {
+          ...target.relationship,
+          value: next,
+        };
         break;
       }
       case 'teleport':
@@ -1079,4 +1216,23 @@ function buildCompanionState(definition: CompanionDefinition): CompanionState {
     role: definition.role,
     relationship: definition.defaultRelationship,
   };
+}
+
+function ensureRelationshipState(state: GameState): void {
+  if (!state.relationships) {
+    state.relationships = {};
+  }
+}
+
+function ensureCompanionsState(state: GameState): void {
+  if (!state.companions) {
+    state.companions = [];
+  }
+}
+
+function findCompanionDefinition(
+  runtime: RuntimeContext,
+  companionId: string
+): CompanionDefinition | undefined {
+  return runtime.story.world.companions?.find((companion) => companion.id === companionId);
 }

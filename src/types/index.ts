@@ -479,6 +479,12 @@ export type Effect =
   | RemoveItemEffect
   | SetVariableEffect
   | ModifyVariableEffect
+  | SetRelationshipEffect
+  | ModifyRelationshipEffect
+  | AddCompanionEffect
+  | RemoveCompanionEffect
+  | SetCompanionFlagEffect
+  | ModifyCompanionRelationshipEffect
   | TeleportEffect
   | SetReputationEffect;
 
@@ -519,6 +525,47 @@ export interface ModifyVariableEffect {
   key: string;
   /** number delta or string append etc; engine decides semantics by current type */
   delta: unknown;
+}
+
+export interface SetRelationshipEffect {
+  type: 'setRelationship';
+  targetId: ID;
+  value: number;
+  stage?: string;
+  flags?: Record<string, boolean>;
+}
+
+export interface ModifyRelationshipEffect {
+  type: 'modifyRelationship';
+  targetId: ID;
+  delta: number;
+  min?: number;
+  max?: number;
+}
+
+export interface AddCompanionEffect {
+  type: 'addCompanion';
+  companionId: ID;
+}
+
+export interface RemoveCompanionEffect {
+  type: 'removeCompanion';
+  companionId: ID;
+}
+
+export interface SetCompanionFlagEffect {
+  type: 'setCompanionFlag';
+  companionId: ID;
+  key: string;
+  value: boolean;
+}
+
+export interface ModifyCompanionRelationshipEffect {
+  type: 'modifyCompanionRelationship';
+  companionId: ID;
+  delta: number;
+  min?: number;
+  max?: number;
 }
 
 export interface TeleportEffect {

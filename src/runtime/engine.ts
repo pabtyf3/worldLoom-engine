@@ -82,6 +82,21 @@ export interface LoadGameOptions {
   replayEntryRulesOnLoad?: boolean;
 }
 
+interface SaveGameInput {
+  currentScene?: string;
+  currentSceneId?: string;
+  currentLocationId?: string;
+  storyBundleId?: string;
+  version?: string;
+  schemaVersion?: string;
+  loreBundleIds?: string[];
+  character?: Partial<GameState['character']>;
+  flags?: Record<string, boolean>;
+  vars?: Record<string, unknown>;
+  reputation?: Record<string, number>;
+  history?: HistoryEvent[];
+}
+
 function buildIndex(story: StoryBundle, loreBundles: LoreBundle[]): RuntimeIndex {
   const sceneById = new Map<string, Scene>();
   story.story.scenes.forEach((scene) => sceneById.set(scene.id, scene));
@@ -135,13 +150,43 @@ function initModules(
       });
       return;
     }
-    if (module.system !== ref.system) {
+    const moduleMeta = module as RuleModule & {
+      compatibleSystems?: string[];
+      supportsSystem?: (system: string) => boolean;
+      init?: (config: Record<string, unknown>) => { ok?: boolean; error?: string } | void;
+    };
+    const systemMatches =
+      module.system === ref.system ||
+      moduleMeta.compatibleSystems?.includes(ref.system) ||
+      moduleMeta.supportsSystem?.(ref.system);
+    if (!systemMatches) {
       errors.push({
         path: `/ruleModules/${index}/system`,
         message: `Rule module ${ref.id} system mismatch (expected ${ref.system}, got ${module.system})`,
         severity: 'error',
       });
       return;
+    }
+    if (ref.config && moduleMeta.init) {
+      try {
+        const initResult = moduleMeta.init(ref.config);
+        if (initResult && initResult.ok === false) {
+          errors.push({
+            path: `/ruleModules/${index}/config`,
+            message: `Rule module ${ref.id} rejected config: ${initResult.error ?? 'invalid config'}`,
+            severity: 'error',
+          });
+          return;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'invalid config';
+        errors.push({
+          path: `/ruleModules/${index}/config`,
+          message: `Rule module ${ref.id} rejected config: ${message}`,
+          severity: 'error',
+        });
+        return;
+      }
     }
     registry.set(ref.id, module);
   });
@@ -226,7 +271,12 @@ export function loadGame(
   input: string | GameState,
   options: LoadGameOptions = {}
 ): ValidationResult & { state?: GameState; renderModel?: RenderModel } {
-  const state = typeof input === 'string' ? (JSON.parse(input) as GameState) : input;
+  const rawInput = typeof input === 'string' ? (JSON.parse(input) as GameState) : input;
+  const normalized = normalizeSaveGame(runtime, rawInput);
+  if (!normalized.state) {
+    return { ok: false, errors: normalized.errors };
+  }
+  const state = normalized.state;
   if (state.storyBundleId !== runtime.story.id) {
     return {
       ok: false,
@@ -243,17 +293,19 @@ export function loadGame(
     currentSceneId: state.currentSceneId,
     storySceneIds: new Set(runtime.story.story.scenes.map((scene) => scene.id)),
   });
+  const warnings = validateInventoryItems(runtime, state);
+  const combined = [...validation.errors, ...warnings];
 
   if (!validation.ok) {
-    return { ...validation, state: undefined };
+    return { ok: false, errors: combined, state: undefined };
   }
 
   if (options.replayEntryRulesOnLoad) {
     const result = enterScene(runtime, state, state.currentSceneId);
-    return { ...validation, state: result.state, renderModel: result.renderModel };
+    return { ok: true, errors: combined, state: result.state, renderModel: result.renderModel };
   }
 
-  return { ...validation, state };
+  return { ok: true, errors: combined, state };
 }
 
 function nowStamp(): string {
@@ -372,7 +424,17 @@ function evaluateCondition(
     case 'expression': {
       const result = evaluateExpression(condition.expr, state);
       if (!result.value && result.error && runtime.conditionEvaluation === 'engine+modules') {
+        recordHistory(state, {
+          type: 'rule',
+          data: { kind: 'expression', error: result.error, expr: condition.expr },
+        });
         return evaluateConditionWithModules(runtime, state, condition) ?? false;
+      }
+      if (result.error) {
+        recordHistory(state, {
+          type: 'rule',
+          data: { kind: 'expression', error: result.error, expr: condition.expr },
+        });
       }
       return result.value;
     }
@@ -587,6 +649,7 @@ export function enterScene(
     if (result?.effects) {
       const applied = applyEffects(runtime, state, result.effects);
       if (applied.teleportTarget) {
+        recordHistory(state, { type: 'sceneExit', sceneId: scene.id });
         return enterScene(runtime, state, applied.teleportTarget);
       }
     }
@@ -639,11 +702,13 @@ export function selectExit(
     if (result?.effects) {
       const applied = applyEffects(runtime, state, result.effects);
       if (applied.teleportTarget) {
+        recordHistory(state, { type: 'sceneExit', sceneId: scene.id });
         return enterScene(runtime, state, applied.teleportTarget);
       }
     }
   }
 
+  recordHistory(state, { type: 'sceneExit', sceneId: scene.id });
   return enterScene(runtime, state, targetExit.targetScene);
 }
 
@@ -688,6 +753,7 @@ export function selectAction(
   }
 
   if (teleportTarget) {
+    recordHistory(state, { type: 'sceneExit', sceneId: scene.id });
     return enterScene(runtime, state, teleportTarget);
   }
 
@@ -714,4 +780,90 @@ export function getValidation(
   loreBundles: LoreBundle[] = []
 ): ValidationResult {
   return validateBundles(story, loreBundles);
+}
+
+function isGameState(input: unknown): input is GameState {
+  if (!input || typeof input !== 'object') return false;
+  const candidate = input as GameState;
+  return (
+    typeof candidate.storyBundleId === 'string' &&
+    typeof candidate.currentSceneId === 'string' &&
+    Boolean(candidate.character) &&
+    Boolean(candidate.flags) &&
+    Boolean(candidate.vars)
+  );
+}
+
+function normalizeSaveGame(
+  runtime: RuntimeContext,
+  input: GameState | SaveGameInput
+): { state?: GameState; errors: ValidationError[] } {
+  if (isGameState(input)) {
+    return { state: input, errors: [] };
+  }
+  const errors: ValidationError[] = [];
+  const save = input;
+  const sceneId = save.currentSceneId ?? save.currentScene;
+  if (!sceneId) {
+    errors.push({
+      path: '/currentSceneId',
+      message: 'Missing currentSceneId',
+      severity: 'error',
+    });
+    return { errors };
+  }
+
+  const state = createNewGame(runtime, save.character);
+  state.currentSceneId = sceneId;
+  const scene = runtime.index.sceneById.get(sceneId);
+  if (scene?.locationId) {
+    state.currentLocationId = scene.locationId;
+  }
+  if (save.currentLocationId) {
+    state.currentLocationId = save.currentLocationId;
+  }
+  if (save.storyBundleId) {
+    state.storyBundleId = save.storyBundleId;
+  }
+  if (save.version) {
+    state.version = save.version;
+  }
+  if (save.schemaVersion) {
+    state.schemaVersion = save.schemaVersion;
+  }
+  if (save.loreBundleIds) {
+    state.loreBundleIds = save.loreBundleIds;
+  }
+  if (save.flags) {
+    state.flags = save.flags;
+  }
+  if (save.vars) {
+    state.vars = save.vars;
+  }
+  if (save.reputation) {
+    state.reputation = save.reputation;
+  }
+  if (save.history) {
+    state.history = save.history;
+  }
+
+  return { state, errors };
+}
+
+function validateInventoryItems(runtime: RuntimeContext, state: GameState): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const loreItems = runtime.index.loreByType.itemById;
+  if (!loreItems || loreItems.size === 0) {
+    return errors;
+  }
+  state.character.inventory.forEach((entry, index) => {
+    if (!loreItems.has(entry.item.id)) {
+      errors.push({
+        path: `/character/inventory/${index}/item/id`,
+        message: `Item ${entry.item.id} not found in lore items`,
+        severity: 'warning',
+      });
+    }
+  });
+  return errors;
 }

@@ -20,3 +20,8 @@ across crashes or restarts.
 - Goal: Record current implementation status after restart.
 - Outcome: Engine implementation exists (types, runtime, validation, expression eval, rule modules, save/load, tests). Latest commit: feat: bootstrap engine codebase.
 - Follow-ups: Confirm spec review checkpoint and align any gaps with worldLoom-spec.
+
+### 2025-12-22
+- Goal: Begin spec-to-implementation fixes (save/load, module config, warnings, history events).
+- Outcome: Added SaveGame normalization, rule module config handling, expression error logging, sceneExit history, and inventory warnings.
+- Follow-ups: Audit for any remaining spec gaps and add tests for new behaviors.

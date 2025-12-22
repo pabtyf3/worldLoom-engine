@@ -30,3 +30,8 @@ across crashes or restarts.
 - Goal: Add tests and re-audit remaining spec gaps.
 - Outcome: Added tests for SaveGame normalization, expression error history, and inventory warnings. Re-audit notes pending gaps (see follow-ups).
 - Follow-ups: Review teleport handling during entryRules, consider exposing expression warnings, and validate character lore refs on load.
+
+### 2025-12-22
+- Goal: Close remaining spec gaps (teleport handling, warning surfacing, character lore checks).
+- Outcome: Entry/exit rules now defer teleports until rules finish, expression warnings surface on runtime, and character lore refs warn on load/init.
+- Follow-ups: Add explicit warnings output to RenderModel if desired.

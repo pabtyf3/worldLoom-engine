@@ -45,6 +45,7 @@ export interface RuntimeConfig {
   rng?: RNG;
   locale?: string;
   conditionEvaluation?: ConditionEvaluationMode;
+  onWarning?: (warning: ValidationError) => void;
 }
 
 export interface RuntimeContext {
@@ -55,6 +56,8 @@ export interface RuntimeContext {
   locale?: string;
   index: RuntimeIndex;
   conditionEvaluation: ConditionEvaluationMode;
+  warnings: ValidationError[];
+  onWarning?: (warning: ValidationError) => void;
 }
 
 export interface RenderModel {
@@ -216,6 +219,8 @@ export function createRuntime(config: RuntimeConfig): RuntimeInitResult {
       locale: config.locale,
       index: buildIndex(config.story, loreBundles),
       conditionEvaluation: config.conditionEvaluation ?? 'engine',
+      warnings: [],
+      onWarning: config.onWarning,
     },
   };
 }
@@ -259,6 +264,9 @@ export function createNewGame(
     history: [],
   };
 
+  const loreWarnings = validateCharacterLore(runtime, state);
+  loreWarnings.forEach((warning) => recordWarning(runtime, warning));
+
   return state;
 }
 
@@ -294,7 +302,8 @@ export function loadGame(
     storySceneIds: new Set(runtime.story.story.scenes.map((scene) => scene.id)),
   });
   const warnings = validateInventoryItems(runtime, state);
-  const combined = [...validation.errors, ...warnings];
+  const loreWarnings = validateCharacterLore(runtime, state);
+  const combined = [...validation.errors, ...warnings, ...loreWarnings];
 
   if (!validation.ok) {
     return { ok: false, errors: combined, state: undefined };
@@ -423,6 +432,13 @@ function evaluateCondition(
     }
     case 'expression': {
       const result = evaluateExpression(condition.expr, state);
+      if (result.error) {
+        recordWarning(runtime, {
+          path: '/runtime/conditions/expression',
+          message: `Expression parse warning: ${result.error}`,
+          severity: 'warning',
+        });
+      }
       if (!result.value && result.error && runtime.conditionEvaluation === 'engine+modules') {
         recordHistory(state, {
           type: 'rule',
@@ -644,18 +660,21 @@ export function enterScene(
   recordHistory(state, { type: 'sceneEnter', sceneId });
 
   const overlays: string[] = [];
+  let teleportTarget: string | undefined;
   for (const hook of scene.entryRules ?? []) {
     const result = resolveRuleHook(runtime, state, scene, hook);
     if (result?.effects) {
       const applied = applyEffects(runtime, state, result.effects);
-      if (applied.teleportTarget) {
-        recordHistory(state, { type: 'sceneExit', sceneId: scene.id });
-        return enterScene(runtime, state, applied.teleportTarget);
-      }
+      teleportTarget = applied.teleportTarget ?? teleportTarget;
     }
     if (result?.narrative) {
       overlays.push(resolveNarrativeText(result.narrative, runtime, state));
     }
+  }
+
+  if (teleportTarget) {
+    recordHistory(state, { type: 'sceneExit', sceneId: scene.id });
+    return enterScene(runtime, state, teleportTarget);
   }
 
   return {
@@ -697,15 +716,18 @@ export function selectExit(
     data: { kind: 'exit', label: targetExit.label },
   });
 
+  let teleportTarget: string | undefined;
   for (const hook of scene.exitRules ?? []) {
     const result = resolveRuleHook(runtime, state, scene, hook);
     if (result?.effects) {
       const applied = applyEffects(runtime, state, result.effects);
-      if (applied.teleportTarget) {
-        recordHistory(state, { type: 'sceneExit', sceneId: scene.id });
-        return enterScene(runtime, state, applied.teleportTarget);
-      }
+      teleportTarget = applied.teleportTarget ?? teleportTarget;
     }
+  }
+
+  if (teleportTarget) {
+    recordHistory(state, { type: 'sceneExit', sceneId: scene.id });
+    return enterScene(runtime, state, teleportTarget);
   }
 
   recordHistory(state, { type: 'sceneExit', sceneId: scene.id });
@@ -866,4 +888,32 @@ function validateInventoryItems(runtime: RuntimeContext, state: GameState): Vali
     }
   });
   return errors;
+}
+
+function validateCharacterLore(runtime: RuntimeContext, state: GameState): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const { raceById, factionById } = runtime.index.loreByType;
+  const raceId = state.character.raceId;
+  if (raceId && !raceById.has(raceId)) {
+    errors.push({
+      path: '/character/raceId',
+      message: `Race ${raceId} not found in lore`,
+      severity: 'warning',
+    });
+  }
+  state.character.factionIds?.forEach((factionId, index) => {
+    if (!factionById.has(factionId)) {
+      errors.push({
+        path: `/character/factionIds/${index}`,
+        message: `Faction ${factionId} not found in lore`,
+        severity: 'warning',
+      });
+    }
+  });
+  return errors;
+}
+
+function recordWarning(runtime: RuntimeContext, warning: ValidationError): void {
+  runtime.warnings.push(warning);
+  runtime.onWarning?.(warning);
 }

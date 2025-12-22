@@ -14,5 +14,6 @@ describe('History events', () => {
 
     expect(result).toBe(false);
     expect(state.history?.some((event) => event.type === 'rule')).toBe(true);
+    expect(runtime.warnings.some((warning) => warning.severity === 'warning')).toBe(true);
   });
 });

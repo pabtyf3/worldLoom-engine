@@ -1,0 +1,45 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`RenderModel snapshots renders example story bundle 1`] = `
+{
+  "ambience": undefined,
+  "availableActions": [
+    {
+      "condition": {
+        "key": "met.guard",
+        "operator": "notEquals",
+        "type": "flag",
+        "value": true,
+      },
+      "effects": [
+        {
+          "key": "met.guard",
+          "type": "setFlag",
+          "value": true,
+        },
+      ],
+      "id": "act.askGuard",
+      "label": "Ask the guard about the missing locket",
+      "ruleHooks": [
+        {
+          "payload": {
+            "dc": 10,
+            "stat": "cha",
+          },
+          "type": "skillCheck",
+        },
+      ],
+    },
+  ],
+  "availableExits": [
+    {
+      "label": "Go to the tavern",
+      "targetScene": "scene.tavern",
+    },
+  ],
+  "locationId": "loc.townSquare",
+  "narrativeText": Any<String>,
+  "recentNarrative": undefined,
+  "sceneId": "scene.square",
+}
+`;

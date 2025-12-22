@@ -184,6 +184,37 @@ const result = engine.execute({
 
 (Exact APIs will evolve until the first stable release.)
 
+### Runtime Usage (Current)
+
+```ts
+import {
+  createRuntime,
+  createNewGame,
+  enterScene,
+  saveGame,
+  loadGame,
+  RulesCoreModule,
+} from "worldloom-engine";
+
+const runtimeResult = createRuntime({
+  story,
+  loreBundles,
+  modules: [new RulesCoreModule()],
+  conditionEvaluation: "engine+modules",
+});
+
+if (!runtimeResult.ok || !runtimeResult.runtime) {
+  throw new Error("Runtime init failed");
+}
+
+const runtime = runtimeResult.runtime;
+const state = createNewGame(runtime, { name: "Player" });
+const entered = enterScene(runtime, state, state.currentSceneId);
+
+const saved = saveGame(entered.state);
+const loaded = loadGame(runtime, saved, { replayEntryRulesOnLoad: false });
+```
+
 ---
 
 ## Contributing
@@ -197,6 +228,10 @@ Please note:
 - Changes that introduce side effects or platform coupling will be rejected
 
 See `CONTRIBUTING.md` for details.
+
+## Roadmap
+
+See `docs/ROADMAP.md` for spec-driven next steps.
 
 ---
 
@@ -218,4 +253,3 @@ WorldLoom Engine is open-source to ensure:
 - AI-safe determinism
 
 The engine is the foundation — the value of WorldLoom lies in the tools and ecosystems built on top of it.
-

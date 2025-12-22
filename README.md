@@ -215,6 +215,17 @@ const saved = saveGame(entered.state);
 const loaded = loadGame(runtime, saved, { replayEntryRulesOnLoad: false });
 ```
 
+### CLI (Experimental)
+
+Build and run the sample story bundle in a terminal:
+
+```sh
+npm run build
+node dist/cli.js --story examples/sample-bundles/storybundle-example.json --lore examples/sample-bundles/lorebundle-example.json
+```
+
+Commands: enter a number to choose an exit/action, or type `look`, `state`, `help`, `quit`.
+
 ---
 
 ## Contributing

@@ -1,0 +1,24 @@
+{
+  "id": "lore.rookhaven",
+  "version": "1.3.0",
+  "name": "Rookhaven Core Lore",
+  "races": [
+    { "id": "race.human", "name": "Human", "description": "Adaptable and ambitious.", "playable": true },
+    { "id": "race.elf", "name": "Elf", "description": "Long-lived and keen-eyed.", "playable": true, "traitIds": ["trait.lowLight"] }
+  ],
+  "traits": [
+    { "id": "trait.lowLight", "name": "Low-Light Vision", "description": "Can see in dim light." }
+  ],
+  "factions": [
+    {
+      "id": "faction.watch",
+      "name": "Rookhaven Watch",
+      "description": "The town guard and peacekeepers.",
+      "relationships": [{ "factionId": "faction.thieves", "stance": "enemy" }]
+    },
+    { "id": "faction.thieves", "name": "The Lanterns", "description": "A discreet thieves' guild." }
+  ],
+  "history": [
+    { "id": "event.foundings", "name": "Founding of Rookhaven", "description": "A frontier outpost became a town.", "era": "Early" }
+  ]
+}

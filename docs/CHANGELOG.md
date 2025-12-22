@@ -35,3 +35,13 @@ across crashes or restarts.
 - Goal: Close remaining spec gaps (teleport handling, warning surfacing, character lore checks).
 - Outcome: Entry/exit rules now defer teleports until rules finish, expression warnings surface on runtime, and character lore refs warn on load/init.
 - Follow-ups: Add explicit warnings output to RenderModel if desired.
+
+### 2025-12-22
+- Goal: Start next spec audit section (world/scene/lore/rules docs).
+- Outcome: Reviewed world/scene/lore/rules spec docs; most are placeholders with minimal type snippets. Identified addendum features (lore reveal states, companions, relationships, multiplayer) not yet implemented.
+- Follow-ups: Confirm scope vs roadmap and whether to extend types/runtime for lore reveal states and relationship mechanics.
+
+### 2025-12-22
+- Goal: Provide a runnable CLI and example bundles for terminal playtesting.
+- Outcome: Added sample StoryBundle/LoreBundle and a CLI loop for exits/actions in the terminal.
+- Follow-ups: Add tests for CLI helpers if needed and consider richer formatting.

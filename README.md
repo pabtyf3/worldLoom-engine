@@ -215,6 +215,31 @@ const saved = saveGame(entered.state);
 const loaded = loadGame(runtime, saved, { replayEntryRulesOnLoad: false });
 ```
 
+### Optional Features (Config-Gated)
+
+These optional systems are disabled by default. Enable them via `optionalFeatures`:
+
+```ts
+const runtimeResult = createRuntime({
+  story,
+  loreBundles,
+  modules: [new RulesCoreModule()],
+  conditionEvaluation: "engine+modules",
+  optionalFeatures: {
+    loreRevealStates: true,
+    companions: true,
+    relationships: true,
+    sessions: true,
+  },
+});
+```
+
+Optional systems include:
+
+- Lore reveal states (`state.loreKnowledge` + `lore:` conditions)
+- Companions + relationship effects
+- Session orchestration helpers
+
 ### CLI (Experimental)
 
 Build and run the sample story bundle in a terminal:

@@ -40,3 +40,8 @@ They must not change core runtime behavior unless explicitly enabled.
 - Optional features are behind explicit configuration flags.
 - Public docs list supported optional features and how to enable them.
 - No open blocking issues in the engine backlog.
+
+## Status Notes (Current)
+
+- Optional features implemented: lore reveal states, companions, relationships, sessions.
+- Optional features are gated via `optionalFeatures` in runtime config.

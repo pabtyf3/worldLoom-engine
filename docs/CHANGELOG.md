@@ -70,3 +70,8 @@ across crashes or restarts.
 - Goal: Implement session orchestration primitives and tests (optional, gated).
 - Outcome: Added session queue/resolve helpers and unit tests for first/majority resolution.
 - Follow-ups: Decide whether to expose session config in public docs.
+
+### 2025-12-22
+- Goal: Update docs to reflect optional features and Definition of Done status.
+- Outcome: Documented optionalFeatures config and current status notes.
+- Follow-ups: None.

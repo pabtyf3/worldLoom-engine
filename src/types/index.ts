@@ -21,6 +21,8 @@ export type RaceID = ID;
 export type DeityID = ID;
 export type TraitID = ID;
 export type TimestampISO = string;
+export type LoreKey = string;
+export type LoreRevealState = 'known' | 'discoverable' | 'hidden';
 
 // ----------------------------
 // Versioning
@@ -116,6 +118,7 @@ export interface WorldDefinition {
 
   regions?: Region[];
   locations: Location[];
+  companions?: CompanionDefinition[];
 
   /** Optional macro navigation graph between locations/regions. */
   spatialGraph?: SpatialGraph;
@@ -679,6 +682,55 @@ export interface LoreEvent {
 }
 
 // ----------------------------
+// Optional Companion + Relationship System
+// ----------------------------
+export interface RelationshipState {
+  value: number;
+  stage?: string;
+  flags?: Record<string, boolean>;
+}
+
+export interface CompanionDefinition {
+  id: ID;
+  name: string;
+  role?: string;
+  description?: string;
+  defaultRelationship?: RelationshipState;
+  tags?: string[];
+}
+
+export interface CompanionState {
+  id: ID;
+  name: string;
+  role?: string;
+  relationship?: RelationshipState;
+  flags?: Record<string, boolean>;
+}
+
+// ----------------------------
+// Optional Session Orchestration
+// ----------------------------
+export interface SessionPlayer {
+  id: ID;
+  name?: string;
+  role?: string;
+}
+
+export interface SessionAction {
+  playerId: ID;
+  actionId?: ID;
+  exitLabel?: string;
+  at: TimestampISO;
+}
+
+export interface SessionState {
+  id: ID;
+  players: SessionPlayer[];
+  currentTurn?: number;
+  pendingActions?: SessionAction[];
+}
+
+// ----------------------------
 // Runtime State & Save/Load
 // ----------------------------
 export interface GameState extends Versioned {
@@ -700,8 +752,20 @@ export interface GameState extends Versioned {
   /** Arbitrary variables for story/rules (numbers/strings/objects). */
   vars: Record<string, unknown>;
 
+  /** Optional lore reveal state keyed by lore id (e.g. "race:elf"). */
+  loreKnowledge?: Record<LoreKey, LoreRevealState>;
+
   /** Optional reputation model by faction. */
   reputation?: Record<FactionID, number>;
+
+  /** Optional companion party state. */
+  companions?: CompanionState[];
+
+  /** Optional relationship data keyed by target id. */
+  relationships?: Record<ID, RelationshipState>;
+
+  /** Optional session orchestration state. */
+  session?: SessionState;
 
   /** Engine log for debugging/telemetry. */
   history?: HistoryEvent[];

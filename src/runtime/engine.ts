@@ -2,6 +2,8 @@ import type {
   Action,
   AmbienceBlock,
   Asset,
+  CompanionDefinition,
+  CompanionState,
   Condition,
   Effect,
   Exit,
@@ -46,6 +48,7 @@ export interface RuntimeConfig {
   locale?: string;
   conditionEvaluation?: ConditionEvaluationMode;
   onWarning?: (warning: ValidationError) => void;
+  optionalFeatures?: OptionalFeaturesConfig;
 }
 
 export interface RuntimeContext {
@@ -58,6 +61,14 @@ export interface RuntimeContext {
   conditionEvaluation: ConditionEvaluationMode;
   warnings: ValidationError[];
   onWarning?: (warning: ValidationError) => void;
+  optionalFeatures: OptionalFeaturesConfig;
+}
+
+export interface OptionalFeaturesConfig {
+  loreRevealStates?: boolean;
+  companions?: boolean;
+  relationships?: boolean;
+  sessions?: boolean;
 }
 
 export interface RenderModel {
@@ -221,6 +232,7 @@ export function createRuntime(config: RuntimeConfig): RuntimeInitResult {
       conditionEvaluation: config.conditionEvaluation ?? 'engine',
       warnings: [],
       onWarning: config.onWarning,
+      optionalFeatures: config.optionalFeatures ?? {},
     },
   };
 }
@@ -264,6 +276,7 @@ export function createNewGame(
     history: [],
   };
 
+  applyOptionalFeatureDefaults(runtime, state);
   const loreWarnings = validateCharacterLore(runtime, state);
   loreWarnings.forEach((warning) => recordWarning(runtime, warning));
 
@@ -285,6 +298,7 @@ export function loadGame(
     return { ok: false, errors: normalized.errors };
   }
   const state = normalized.state;
+  applyOptionalFeatureDefaults(runtime, state);
   if (state.storyBundleId !== runtime.story.id) {
     return {
       ok: false,
@@ -916,4 +930,33 @@ function validateCharacterLore(runtime: RuntimeContext, state: GameState): Valid
 function recordWarning(runtime: RuntimeContext, warning: ValidationError): void {
   runtime.warnings.push(warning);
   runtime.onWarning?.(warning);
+}
+
+function applyOptionalFeatureDefaults(runtime: RuntimeContext, state: GameState): void {
+  if (runtime.optionalFeatures.loreRevealStates && !state.loreKnowledge) {
+    state.loreKnowledge = {};
+  }
+  if (runtime.optionalFeatures.relationships && !state.relationships) {
+    state.relationships = {};
+  }
+  if (runtime.optionalFeatures.companions && !state.companions) {
+    state.companions = (runtime.story.world.companions ?? []).map((companion) =>
+      buildCompanionState(companion)
+    );
+  }
+  if (runtime.optionalFeatures.sessions && !state.session) {
+    state.session = {
+      id: 'session.local',
+      players: [],
+    };
+  }
+}
+
+function buildCompanionState(definition: CompanionDefinition): CompanionState {
+  return {
+    id: definition.id,
+    name: definition.name,
+    role: definition.role,
+    relationship: definition.defaultRelationship,
+  };
 }

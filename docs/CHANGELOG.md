@@ -50,3 +50,8 @@ across crashes or restarts.
 - Goal: Align code layout with existing folder structure.
 - Outcome: Moved validation and rule modules into their dedicated folders and added loader/persistence/events entrypoints.
 - Follow-ups: Consider splitting runtime into smaller modules for loader/persistence in future refactors.
+
+### 2025-12-22
+- Goal: Add optional feature scaffolding (lore reveal states, companions, relationships, sessions).
+- Outcome: Added optional feature types and runtime defaults gated by config flags.
+- Follow-ups: Implement optional validation and usage paths for new optional state.

@@ -317,7 +317,8 @@ export function loadGame(
   });
   const warnings = validateInventoryItems(runtime, state);
   const loreWarnings = validateCharacterLore(runtime, state);
-  const combined = [...validation.errors, ...warnings, ...loreWarnings];
+  const knowledgeWarnings = validateLoreKnowledge(runtime, state);
+  const combined = [...validation.errors, ...warnings, ...loreWarnings, ...knowledgeWarnings];
 
   if (!validation.ok) {
     return { ok: false, errors: combined, state: undefined };
@@ -470,6 +471,22 @@ function evaluateCondition(
     }
     case 'lore': {
       const key = condition.key;
+      if (runtime.optionalFeatures.loreRevealStates && key.startsWith('lore:')) {
+        const loreKey = key.slice('lore:'.length);
+        const revealState = state.loreKnowledge?.[loreKey];
+        const operator = condition.operator ?? 'equals';
+        switch (operator) {
+          case 'has':
+            return revealState === 'known';
+          case 'notHas':
+            return revealState !== 'known';
+          case 'notEquals':
+            return revealState !== condition.value;
+          case 'equals':
+          default:
+            return revealState === condition.value;
+        }
+      }
       if (key.startsWith('race:')) {
         return state.character.raceId === key.slice('race:'.length);
       }
@@ -922,6 +939,109 @@ function validateCharacterLore(runtime: RuntimeContext, state: GameState): Valid
         message: `Faction ${factionId} not found in lore`,
         severity: 'warning',
       });
+    }
+  });
+  return errors;
+}
+
+function validateLoreKnowledge(runtime: RuntimeContext, state: GameState): ValidationError[] {
+  const errors: ValidationError[] = [];
+  if (!runtime.optionalFeatures.loreRevealStates || !state.loreKnowledge) {
+    return errors;
+  }
+  const { raceById, factionById, deityById, traitById, locationById, itemById, eventById } =
+    runtime.index.loreByType;
+  const allowedStates = new Set(['known', 'discoverable', 'hidden']);
+
+  Object.entries(state.loreKnowledge).forEach(([key, value]) => {
+    if (!allowedStates.has(String(value))) {
+      errors.push({
+        path: `/loreKnowledge/${key}`,
+        message: `Lore reveal state must be known, discoverable, or hidden`,
+        severity: 'warning',
+      });
+    }
+    const [prefix, id] = key.split(':');
+    if (!id) {
+      errors.push({
+        path: `/loreKnowledge/${key}`,
+        message: `Lore key should include a category prefix (e.g. race:elf)`,
+        severity: 'warning',
+      });
+      return;
+    }
+    switch (prefix) {
+      case 'race':
+        if (!raceById.has(id)) {
+          errors.push({
+            path: `/loreKnowledge/${key}`,
+            message: `Race ${id} not found in lore`,
+            severity: 'warning',
+          });
+        }
+        break;
+      case 'faction':
+        if (!factionById.has(id)) {
+          errors.push({
+            path: `/loreKnowledge/${key}`,
+            message: `Faction ${id} not found in lore`,
+            severity: 'warning',
+          });
+        }
+        break;
+      case 'deity':
+        if (!deityById.has(id)) {
+          errors.push({
+            path: `/loreKnowledge/${key}`,
+            message: `Deity ${id} not found in lore`,
+            severity: 'warning',
+          });
+        }
+        break;
+      case 'trait':
+        if (!traitById.has(id)) {
+          errors.push({
+            path: `/loreKnowledge/${key}`,
+            message: `Trait ${id} not found in lore`,
+            severity: 'warning',
+          });
+        }
+        break;
+      case 'location':
+        if (!locationById.has(id)) {
+          errors.push({
+            path: `/loreKnowledge/${key}`,
+            message: `Location ${id} not found in lore`,
+            severity: 'warning',
+          });
+        }
+        break;
+      case 'item':
+        if (!itemById.has(id)) {
+          errors.push({
+            path: `/loreKnowledge/${key}`,
+            message: `Item ${id} not found in lore`,
+            severity: 'warning',
+          });
+        }
+        break;
+      case 'event':
+        if (!eventById.has(id)) {
+          errors.push({
+            path: `/loreKnowledge/${key}`,
+            message: `Event ${id} not found in lore`,
+            severity: 'warning',
+          });
+        }
+        break;
+      case 'other':
+        break;
+      default:
+        errors.push({
+          path: `/loreKnowledge/${key}`,
+          message: `Unknown lore category prefix ${prefix}`,
+          severity: 'warning',
+        });
     }
   });
   return errors;

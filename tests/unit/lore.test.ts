@@ -37,4 +37,38 @@ describe('Lore conditions', () => {
     expect(evaluateConditionForState(runtime, state, varCondition)).toBe(true);
     expect(evaluateConditionForState(runtime, state, unknownCondition)).toBe(false);
   });
+
+  it('evaluates lore reveal state when enabled', () => {
+    const story = createMockStoryBundle();
+    const runtime = createRuntime({ story, optionalFeatures: { loreRevealStates: true } }).runtime!;
+    const state = createNewGame(runtime);
+
+    state.loreKnowledge = {
+      'race:race.elf': 'known',
+      'event:event.secret': 'hidden',
+    };
+
+    const knownCondition: Condition = {
+      type: 'lore',
+      key: 'lore:race:race.elf',
+      operator: 'equals',
+      value: 'known',
+    };
+    const hiddenCondition: Condition = {
+      type: 'lore',
+      key: 'lore:event:event.secret',
+      operator: 'equals',
+      value: 'hidden',
+    };
+    const notKnownCondition: Condition = {
+      type: 'lore',
+      key: 'lore:race:race.elf',
+      operator: 'notEquals',
+      value: 'hidden',
+    };
+
+    expect(evaluateConditionForState(runtime, state, knownCondition)).toBe(true);
+    expect(evaluateConditionForState(runtime, state, hiddenCondition)).toBe(true);
+    expect(evaluateConditionForState(runtime, state, notKnownCondition)).toBe(true);
+  });
 });

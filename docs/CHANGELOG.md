@@ -55,3 +55,8 @@ across crashes or restarts.
 - Goal: Add optional feature scaffolding (lore reveal states, companions, relationships, sessions).
 - Outcome: Added optional feature types and runtime defaults gated by config flags.
 - Follow-ups: Implement optional validation and usage paths for new optional state.
+
+### 2025-12-22
+- Goal: Implement lore reveal state handling and validation (optional, gated).
+- Outcome: Added lore reveal condition support, validation of loreKnowledge keys, and tests for reveal evaluation.
+- Follow-ups: Add CLI visibility for loreKnowledge if desired.

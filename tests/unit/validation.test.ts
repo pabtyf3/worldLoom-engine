@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { validateBundles } from '../../src/runtime/validation.js';
+import { validateBundles } from '../../src/validation/index.js';
 import type { LoreBundle, StoryBundle } from '../../src/types/index.js';
 
 function baseStory(): StoryBundle {

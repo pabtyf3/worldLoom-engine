@@ -19,7 +19,7 @@ import type {
 import { evaluateExpression } from './expression.js';
 import { createDefaultRng } from './rng.js';
 import type { RNG, ValidationError, ValidationResult } from '../types/index.js';
-import { validateBundles, validateGameState } from './validation.js';
+import { validateBundles, validateGameState } from '../validation/index.js';
 
 const DEFAULT_TIMESTAMP = '1970-01-01T00:00:00.000Z';
 
@@ -107,7 +107,7 @@ function buildIndex(story: StoryBundle, loreBundles: LoreBundle[]): RuntimeIndex
   const locationById = new Map<string, StoryBundle['world']['locations'][number]>();
   story.world.locations.forEach((location) => locationById.set(location.id, location));
 
-  const assetById = new Map<string, StoryBundle['assets'][number]>();
+  const assetById = new Map<string, NonNullable<StoryBundle['assets']>[number]>();
   story.assets?.forEach((asset) => assetById.set(asset.id, asset));
 
   const loreByType = {

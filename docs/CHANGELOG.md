@@ -45,3 +45,8 @@ across crashes or restarts.
 - Goal: Provide a runnable CLI and example bundles for terminal playtesting.
 - Outcome: Added sample StoryBundle/LoreBundle and a CLI loop for exits/actions in the terminal.
 - Follow-ups: Add tests for CLI helpers if needed and consider richer formatting.
+
+### 2025-12-22
+- Goal: Align code layout with existing folder structure.
+- Outcome: Moved validation and rule modules into their dedicated folders and added loader/persistence/events entrypoints.
+- Follow-ups: Consider splitting runtime into smaller modules for loader/persistence in future refactors.

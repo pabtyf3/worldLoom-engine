@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { createRuntime, createNewGame, saveGame, loadGame, enterScene } from '../../src/index.js';
-import type { RuleModule, StoryBundle } from '../../src/types/index.js';
+import type { RuleModule, SaveGameInput, StoryBundle } from '../../src/index.js';
 
 const entryModule: RuleModule = {
   id: 'rules.entry',
@@ -96,5 +96,40 @@ describe('Save/Load', () => {
 
     enterScene(runtime, state, 'scene.start');
     expect(state.flags['entered']).toBe(true);
+  });
+
+  it('loads minimal save input with currentScene', () => {
+    const story = createEntryStory();
+    const runtime = createRuntime({ story, modules: [entryModule] }).runtime!;
+    const saved: SaveGameInput = { currentScene: 'scene.start' };
+
+    const loaded = loadGame(runtime, saved);
+
+    expect(loaded.ok).toBe(true);
+    expect(loaded.state?.currentSceneId).toBe('scene.start');
+    expect(loaded.state?.storyBundleId).toBe('test.save');
+  });
+
+  it('warns on inventory items missing from lore', () => {
+    const story = createEntryStory();
+    const loreBundles = [
+      {
+        id: 'lore.test',
+        version: '1.3.0',
+        name: 'Lore',
+        items: [{ id: 'item.known', name: 'Known', description: 'Known item.' }],
+      },
+    ];
+    const runtime = createRuntime({ story, modules: [entryModule], loreBundles }).runtime!;
+    const state = createNewGame(runtime);
+    state.character.inventory.push({
+      item: { id: 'item.unknown', name: 'Unknown', description: 'Unknown item.' },
+      count: 1,
+    });
+
+    const loaded = loadGame(runtime, saveGame(state));
+
+    expect(loaded.ok).toBe(true);
+    expect(loaded.errors.some((error) => error.severity === 'warning')).toBe(true);
   });
 });

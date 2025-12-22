@@ -82,7 +82,7 @@ export interface LoadGameOptions {
   replayEntryRulesOnLoad?: boolean;
 }
 
-interface SaveGameInput {
+export interface SaveGameInput {
   currentScene?: string;
   currentSceneId?: string;
   currentLocationId?: string;
@@ -268,7 +268,7 @@ export function saveGame(state: GameState): string {
 
 export function loadGame(
   runtime: RuntimeContext,
-  input: string | GameState,
+  input: string | GameState | SaveGameInput,
   options: LoadGameOptions = {}
 ): ValidationResult & { state?: GameState; renderModel?: RenderModel } {
   const rawInput = typeof input === 'string' ? (JSON.parse(input) as GameState) : input;

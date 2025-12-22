@@ -25,3 +25,8 @@ across crashes or restarts.
 - Goal: Begin spec-to-implementation fixes (save/load, module config, warnings, history events).
 - Outcome: Added SaveGame normalization, rule module config handling, expression error logging, sceneExit history, and inventory warnings.
 - Follow-ups: Audit for any remaining spec gaps and add tests for new behaviors.
+
+### 2025-12-22
+- Goal: Add tests and re-audit remaining spec gaps.
+- Outcome: Added tests for SaveGame normalization, expression error history, and inventory warnings. Re-audit notes pending gaps (see follow-ups).
+- Follow-ups: Review teleport handling during entryRules, consider exposing expression warnings, and validate character lore refs on load.

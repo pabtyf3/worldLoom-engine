@@ -71,6 +71,12 @@ export interface OptionalFeaturesConfig {
   sessions?: boolean;
 }
 
+export interface SessionActionRequest {
+  playerId: string;
+  actionId?: string;
+  exitLabel?: string;
+}
+
 export interface RenderModel {
   sceneId: string;
   locationId?: string;
@@ -970,6 +976,134 @@ export function getValidation(
   loreBundles: LoreBundle[] = []
 ): ValidationResult {
   return validateBundles(story, loreBundles);
+}
+
+export function initSession(
+  runtime: RuntimeContext,
+  state: GameState,
+  sessionId = 'session.local'
+): void {
+  if (!runtime.optionalFeatures.sessions) {
+    recordWarning(runtime, {
+      path: '/session/init',
+      message: 'Session features require optionalFeatures.sessions',
+      severity: 'warning',
+    });
+    return;
+  }
+  state.session = state.session ?? {
+    id: sessionId,
+    players: [],
+    pendingActions: [],
+  };
+}
+
+export function registerSessionPlayer(
+  runtime: RuntimeContext,
+  state: GameState,
+  player: { id: string; name?: string; role?: string }
+): void {
+  if (!runtime.optionalFeatures.sessions) {
+    recordWarning(runtime, {
+      path: '/session/register',
+      message: 'Session features require optionalFeatures.sessions',
+      severity: 'warning',
+    });
+    return;
+  }
+  initSession(runtime, state);
+  if (!state.session) return;
+  if (state.session.players.some((existing) => existing.id === player.id)) {
+    return;
+  }
+  state.session.players.push(player);
+}
+
+export function queueSessionAction(
+  runtime: RuntimeContext,
+  state: GameState,
+  action: SessionActionRequest
+): void {
+  if (!runtime.optionalFeatures.sessions) {
+    recordWarning(runtime, {
+      path: '/session/queueAction',
+      message: 'Session features require optionalFeatures.sessions',
+      severity: 'warning',
+    });
+    return;
+  }
+  initSession(runtime, state);
+  if (!state.session) return;
+  state.session.pendingActions = state.session.pendingActions ?? [];
+  state.session.pendingActions.push({
+    playerId: action.playerId,
+    actionId: action.actionId,
+    exitLabel: action.exitLabel,
+    at: nowStamp(),
+  });
+}
+
+export function resolveSessionActions(
+  runtime: RuntimeContext,
+  state: GameState,
+  config: { requiredPlayers?: number; mode?: 'consensus' | 'first' | 'majority' } = {}
+): { chosen?: SessionActionRequest } {
+  if (!runtime.optionalFeatures.sessions) {
+    recordWarning(runtime, {
+      path: '/session/resolve',
+      message: 'Session features require optionalFeatures.sessions',
+      severity: 'warning',
+    });
+    return {};
+  }
+  initSession(runtime, state);
+  if (!state.session || !state.session.pendingActions?.length) {
+    return {};
+  }
+  const requiredPlayers = config.requiredPlayers ?? state.session.players.length;
+  if (requiredPlayers > 0 && state.session.pendingActions.length < requiredPlayers) {
+    return {};
+  }
+  const mode = config.mode ?? 'first';
+  let chosen: SessionActionRequest | undefined;
+  if (mode === 'first') {
+    const first = state.session.pendingActions[0];
+    chosen = { playerId: first.playerId, actionId: first.actionId, exitLabel: first.exitLabel };
+  } else {
+    const tally = new Map<string, number>();
+    for (const pending of state.session.pendingActions) {
+      const key = pending.actionId ?? pending.exitLabel ?? '';
+      if (!key) continue;
+      tally.set(key, (tally.get(key) ?? 0) + 1);
+    }
+    const entries = [...tally.entries()];
+    entries.sort((a, b) => b[1] - a[1]);
+    if (entries.length > 0) {
+      const [key] = entries[0];
+      const sample = state.session.pendingActions.find(
+        (pending) => pending.actionId === key || pending.exitLabel === key
+      );
+      if (sample) {
+        chosen = {
+          playerId: sample.playerId,
+          actionId: sample.actionId,
+          exitLabel: sample.exitLabel,
+        };
+      }
+    }
+    if (mode === 'consensus' && entries.length > 0) {
+      const [, topCount] = entries[0];
+      if (topCount !== state.session.pendingActions.length) {
+        chosen = undefined;
+      }
+    }
+  }
+
+  if (chosen) {
+    state.session.pendingActions = [];
+  }
+
+  return { chosen };
 }
 
 function isGameState(input: unknown): input is GameState {

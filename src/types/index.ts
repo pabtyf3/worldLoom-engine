@@ -777,6 +777,11 @@ export interface SessionState {
   pendingActions?: SessionAction[];
 }
 
+export interface SessionConfig {
+  requiredPlayers?: number;
+  mode?: 'consensus' | 'first' | 'majority';
+}
+
 // ----------------------------
 // Runtime State & Save/Load
 // ----------------------------

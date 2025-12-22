@@ -65,3 +65,8 @@ across crashes or restarts.
 - Goal: Implement companions + relationships data model and hooks (optional, gated).
 - Outcome: Added optional effect handling for companions/relationships and tests for companion/relationship effects.
 - Follow-ups: Add validation for companion ids in content if needed.
+
+### 2025-12-22
+- Goal: Implement session orchestration primitives and tests (optional, gated).
+- Outcome: Added session queue/resolve helpers and unit tests for first/majority resolution.
+- Follow-ups: Decide whether to expose session config in public docs.
